@@ -55,8 +55,7 @@ Files shared with the terminal `ask` script:
 | `~/.local/share/ask/history.jsonl` | Conversation history (JSONL, one message per line) |
 
 The DeepSeek API key is read from `~/.config/ask/key`. The file is created and
-kept owner-only (`chmod 600`) when you save a key from the **API** tab, so it
-never needs to be touched by hand.
+kept owner-only (`chmod 600`) when you save a key from the **API** tab.
 
 ## Remove
 
