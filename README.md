@@ -62,7 +62,7 @@ omarchy plugin update io.github.henksys.ask
 
 ## Requirements
 
-- Omarchy (Hyprland + quickshell)
+- Omarchy (Hyprland + quickshell). Tested with Omarchy 4.0.1-1 and Quickshell version 0.3.1.
 - curl (used for the DeepSeek API call)
 - A DeepSeek API key in `DEEPSEEK_API_KEY`
 
