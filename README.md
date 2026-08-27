@@ -2,7 +2,7 @@
 
 Chat with DeepSeek from your Omarchy desktop. A summoned panel with a
 scrollable conversation thread and a settings tab, keeping context from the
-same config and history files as the terminal `ask` script.
+same config and history files as the terminal [ask single bash script](https://pages.github.com/).
 
 ## Install
 
