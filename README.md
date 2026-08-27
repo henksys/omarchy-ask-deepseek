@@ -1,9 +1,12 @@
 # Ask DeepSeek
 
-Chat with DeepSeek from your Omarchy desktop. A summoned panel with a
-scrollable conversation thread, a settings tab, and an API-key tab, keeping
-context from the same config and history files as the terminal
-[ask single bash script](https://github.com/henksys/deepask).
+Chat with DeepSeek from your desktop — ask a question and get an answer, with the conversation shown as a scrollable thread.
+
+- Threaded conversation: each question paired with its answer
+- Double-click a question or answer to copy it to the clipboard
+- Optional conversation history for follow-up context
+- Live model list from DeepSeek (Settings - Refresh)
+- API key stored locally with owner-only permissions (API tab)
 
 ## Install
 
