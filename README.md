@@ -85,3 +85,7 @@ omarchy plugin update io.github.henksys.ask
 ## License
 
 MIT
+
+## Screenshot
+
+![Screenshot](screenshots/screenshot1_chat.jpg)
