@@ -54,6 +54,12 @@ Item {
   property string s_response_format: "text"
   property bool s_save_history: false
 
+  // API tab state.
+  property string s_api_key: ""
+  property string apiKeyStatus: ""
+  property string apiKeyFlashText: ""
+  property bool apiKeyReadDone: false
+
   readonly property bool saveHistory: String(root.config.save_history || "n").toLowerCase() === "y"
 
   property color background: Color.menu.background
@@ -340,6 +346,51 @@ Item {
     restoredTimer.restart()
   }
 
+  // ---- API tab ----
+
+  function loadApiSettings() {
+    var envKey = Quickshell.env("DEEPSEEK_API_KEY") || ""
+    if (envKey) {
+      root.apiKeyStatus = "The DEEPSEEK_API_KEY environment variable is set and takes priority. You can still save a key below as a fallback."
+    } else {
+      root.apiKeyStatus = "No DEEPSEEK_API_KEY environment variable. The key is read from " + root.keyFile + "."
+    }
+    root.apiKeyReadDone = false
+    apiKeyReadProc.command = ["cat", root.keyFile]
+    apiKeyReadProc.running = true
+  }
+
+  function onApiKeyFileRead(text) {
+    if (root.apiKeyReadDone) return
+    root.apiKeyReadDone = true
+    root.s_api_key = String(text || "").trim()
+  }
+
+  function saveApiKey() {
+    var key = root.s_api_key.trim()
+    if (key === "") {
+      root.apiKeyStatus = "Enter an API key first."
+      return
+    }
+    keyWriteProc.command = [
+      "sh", "-c", 'mkdir -p "$1" && printf \'%s\' "$2" > "$3" && chmod 600 "$3"',
+      "sh", root.configDir, key, root.keyFile
+    ]
+    keyWriteProc.running = true
+    root.apiKeyStatus = "Saved to " + root.keyFile + " with owner-only permissions (600)."
+    root.apiKeyFlashText = "Saved"
+    apiKeyTimer.restart()
+  }
+
+  function removeApiKey() {
+    root.s_api_key = ""
+    clearProc.command = ["sh", "-c", 'rm -f "$1"', "sh", root.keyFile]
+    clearProc.running = true
+    root.apiKeyStatus = "Stored key removed."
+    root.apiKeyFlashText = "Removed"
+    apiKeyTimer.restart()
+  }
+
   // ---- IO processes ----
 
   Process {
@@ -376,6 +427,17 @@ Item {
   }
 
   Process {
+    id: apiKeyReadProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.onApiKeyFileRead(String(text || ""))
+    }
+    onExited: function(code) {
+      if (code !== 0 && !root.apiKeyReadDone) root.onApiKeyFileRead("")
+    }
+  }
+
+  Process {
     id: apiProc
     stdout: StdioCollector {
       waitForEnd: true
@@ -402,6 +464,10 @@ Item {
 
   Process {
     id: configWriteProc
+  }
+
+  Process {
+    id: keyWriteProc
   }
 
   Process {
@@ -443,6 +509,12 @@ Item {
     id: clearedTimer
     interval: 1600
     onTriggered: root.clearedFlash = false
+  }
+
+  Timer {
+    id: apiKeyTimer
+    interval: 1600
+    onTriggered: root.apiKeyFlashText = ""
   }
 
   // ---- Window ----
@@ -487,7 +559,7 @@ Item {
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: function(event) {
           if (event.key === Qt.Key_Escape) {
-            if (root.currentTab === "settings") {
+            if (root.currentTab === "settings" || root.currentTab === "api") {
               root.currentTab = "ask"
               event.accepted = true
               return
@@ -537,6 +609,22 @@ Item {
             onClicked: {
               root.loadSettings()
               root.currentTab = "settings"
+            }
+          }
+
+          Button {
+            id: apiTabButton
+            anchors.left: settingsTabButton.right
+            anchors.leftMargin: Style.spacing.md
+            anchors.verticalCenter: parent.verticalCenter
+            text: "API"
+            fontFamily: Style.font.family
+            fontSize: Style.font.title
+            selected: root.currentTab === "api"
+            focusable: true
+            onClicked: {
+              root.loadApiSettings()
+              root.currentTab = "api"
             }
           }
 
@@ -941,6 +1029,107 @@ Item {
                 }
 
                 Item { width: 1; height: Style.spacing.xs }
+              }
+            }
+          }
+
+          // ---- API tab ----
+          Item {
+            id: apiContent
+            anchors.fill: parent
+            visible: root.currentTab === "api"
+
+            Flickable {
+              id: apiScroll
+              anchors.fill: parent
+              contentHeight: apiColumn.height
+              clip: true
+              boundsBehavior: Flickable.StopAtBounds
+
+              Column {
+                id: apiColumn
+                width: apiScroll.width
+                spacing: Style.spacing.panelGap
+
+                Text {
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  text: "Enter your DeepSeek API key. It is stored in " + root.keyFile + " with owner-only permissions (chmod 600). If the DEEPSEEK_API_KEY environment variable is set, it takes priority."
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                }
+
+                Column {
+                  width: parent.width
+                  spacing: Style.spacing.labelGap
+                  Text {
+                    text: "DeepSeek API key"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pointSize: 9
+                    font.bold: true
+                  }
+                  TextField {
+                    id: apiKeyField
+                    width: parent.width
+                    text: root.s_api_key
+                    placeholderText: "sk-..."
+                    password: true
+                    onTextEdited: root.s_api_key = text
+                  }
+                }
+
+                Item {
+                  width: parent.width
+                  height: Style.spacing.controlHeight
+
+                  Button {
+                    id: saveKeyButton
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Save API key"
+                    fontFamily: Style.font.family
+                    fontSize: Style.font.body
+                    focusable: true
+                    onClicked: root.saveApiKey()
+                  }
+
+                  Text {
+                    visible: root.apiKeyFlashText !== ""
+                    text: root.apiKeyFlashText
+                    color: Style.selectedStateColor(root.foreground, root.accent)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    anchors.left: saveKeyButton.right
+                    anchors.leftMargin: Style.spacing.xxl
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+
+                  Button {
+                    id: removeKeyButton
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Remove stored key"
+                    fontFamily: Style.font.family
+                    fontSize: Style.font.body
+                    focusable: true
+                    onClicked: root.removeApiKey()
+                  }
+                }
+
+                PanelSeparator {
+                  width: parent.width
+                }
+
+                Text {
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  text: root.apiKeyStatus
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                }
               }
             }
           }

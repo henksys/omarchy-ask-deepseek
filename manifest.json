@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.henksys.ask",
   "name": "Ask DeepSeek",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Henk",
   "license": "MIT",
   "description": "Chat with DeepSeek from the desktop",
