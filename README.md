@@ -40,10 +40,10 @@ Changes are saved to `~/.config/ask/config` and apply immediately.
 
 ### API tab
 
-Enter your DeepSeek API key in the **API** tab (panel header). The key is
-saved to `~/.config/ask/key` with owner-only permissions (`chmod 600`). The
-**Remove stored key** button deletes it. When the `DEEPSEEK_API_KEY`
-environment variable is set, it takes priority over the stored key.
+Enter or change your DeepSeek API key in the **API** tab (panel header). The
+key is saved to `~/.config/ask/key` with owner-only permissions (`chmod 600`),
+and the **Remove stored key** button deletes it. There is no other way to
+configure the key.
 
 ## Configuration
 
@@ -52,21 +52,12 @@ Files shared with the terminal `ask` script:
 | File | Purpose |
 |------|---------|
 | `~/.config/ask/config` | Settings (JSON, editable in the panel or by hand) |
-| `~/.config/ask/key` | DeepSeek API key (optional, see below) |
+| `~/.config/ask/key` | DeepSeek API key (managed from the **API** tab) |
 | `~/.local/share/ask/history.jsonl` | Conversation history (JSONL, one message per line) |
 
-The API key is read from the `DEEPSEEK_API_KEY` environment variable, falling
-back to `~/.config/ask/key` when the variable is not set. The desktop shell is
-started at login and does not see variables exported only in `~/.bashrc`, so
-on a desktop install set the key from the panel's **API** tab (or create the
-file by hand):
-
-```sh
-printf '%s\n' 'your-api-key' > ~/.config/ask/key
-chmod 600 ~/.config/ask/key
-```
-
-The file should be readable only by your user (`chmod 600`).
+The DeepSeek API key is read from `~/.config/ask/key`. The file is created and
+kept owner-only (`chmod 600`) when you save a key from the **API** tab, so it
+never needs to be touched by hand.
 
 ## Remove
 
@@ -84,7 +75,7 @@ omarchy plugin update io.github.henksys.ask
 
 - Omarchy (Hyprland + quickshell). Tested with Omarchy 4.0.1-1 and Quickshell version 0.3.1.
 - curl (used for the DeepSeek API call)
-- A DeepSeek API key in `DEEPSEEK_API_KEY`
+- A DeepSeek API key (enter it in the **API** tab)
 
 ## License
 

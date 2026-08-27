@@ -231,15 +231,7 @@ Item {
     root.apiExited = false
     root.apiExitCode = 0
 
-    // Prefer the environment variable (as the terminal `ask` does); fall back
-    // to a key file at ~/.config/ask/key so the panel also works when the
-    // desktop shell was started without the variable exported.
-    var key = Quickshell.env("DEEPSEEK_API_KEY") || ""
-    if (key) {
-      root.sendWithKey(question, key)
-      return
-    }
-
+    // The API key always comes from ~/.config/ask/key, managed in the API tab.
     root.keyReadDone = false
     keyReadProc.command = ["cat", root.keyFile]
     keyReadProc.running = true
@@ -251,7 +243,7 @@ Item {
     var key = String(text || "").trim()
     if (!key) {
       root.busy = false
-      root.setLastAnswer("Error: DEEPSEEK_API_KEY is not set and no key file found at " + root.keyFile + ".", true)
+      root.setLastAnswer("Error: no API key set. Open the API tab and enter your DeepSeek API key.", true)
       Qt.callLater(function() { inputField.forceActiveFocus() })
       return
     }
@@ -349,12 +341,7 @@ Item {
   // ---- API tab ----
 
   function loadApiSettings() {
-    var envKey = Quickshell.env("DEEPSEEK_API_KEY") || ""
-    if (envKey) {
-      root.apiKeyStatus = "The DEEPSEEK_API_KEY environment variable is set and takes priority. You can still save a key below as a fallback."
-    } else {
-      root.apiKeyStatus = "No DEEPSEEK_API_KEY environment variable. The key is read from " + root.keyFile + "."
-    }
+    root.apiKeyStatus = "The key is read from " + root.keyFile + "."
     root.apiKeyReadDone = false
     apiKeyReadProc.command = ["cat", root.keyFile]
     apiKeyReadProc.running = true
@@ -1054,7 +1041,7 @@ Item {
                 Text {
                   width: parent.width
                   wrapMode: Text.Wrap
-                  text: "Enter your DeepSeek API key. It is stored in " + root.keyFile + " with owner-only permissions (chmod 600). If the DEEPSEEK_API_KEY environment variable is set, it takes priority."
+                  text: "Enter your DeepSeek API key. It is stored in " + root.keyFile + " with owner-only permissions (chmod 600)."
                   color: Qt.darker(root.foreground, 1.4)
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
