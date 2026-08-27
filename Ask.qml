@@ -41,6 +41,7 @@ Item {
   property bool savedFlash: false
   property bool restoredFlash: false
   property bool clearedFlash: false
+  property bool copiedFlash: false
   property int scrollTicks: 0
   property string _historyText: ""
 
@@ -218,6 +219,13 @@ Item {
     clearProc.running = true
     root.clearedFlash = true
     clearedTimer.restart()
+  }
+
+  // Copy a message to the clipboard (double-click on a question/answer).
+  function copyAnswer(text) {
+    Quickshell.clipboardText = String(text || "")
+    root.copiedFlash = true
+    copiedTimer.restart()
   }
 
   function send() {
@@ -580,6 +588,12 @@ Item {
   }
 
   Timer {
+    id: copiedTimer
+    interval: 1600
+    onTriggered: root.copiedFlash = false
+  }
+
+  Timer {
     id: apiKeyTimer
     interval: 1600
     onTriggered: root.apiKeyFlashText = ""
@@ -801,6 +815,27 @@ Item {
                 id: clearedLabel
                 anchors.centerIn: parent
                 text: "History cleared"
+                color: root.foreground
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+              }
+            }
+
+            Rectangle {
+              visible: root.copiedFlash
+              anchors.horizontalCenter: parent.horizontalCenter
+              anchors.bottom: inputRow.top
+              anchors.bottomMargin: Style.spacing.md
+              radius: Style.cornerRadius
+              color: Style.hoverFillFor(root.foreground, root.accent)
+              implicitWidth: copiedLabel.implicitWidth + Style.spacing.xxl * 2
+              implicitHeight: copiedLabel.implicitHeight + Style.spacing.xxs * 2
+              z: 3
+
+              Text {
+                id: copiedLabel
+                anchors.centerIn: parent
+                text: "Copied to clipboard"
                 color: root.foreground
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
@@ -1255,6 +1290,11 @@ Item {
           radius: Style.cornerRadius
           color: Style.selectedFillFor(root.foreground, root.accent)
 
+          TapHandler {
+            acceptedButtons: Qt.LeftButton
+            onDoubleTapped: root.copyAnswer(model.question)
+          }
+
           Text {
             id: questionText
             anchors.left: parent.left
@@ -1280,6 +1320,11 @@ Item {
           height: answerText.height + Style.spacing.xl * 2
           radius: Style.cornerRadius
           color: model.isError ? Util.alpha(Color.urgent, 0.22) : Style.hoverFillFor(root.foreground, root.accent)
+
+          TapHandler {
+            acceptedButtons: Qt.LeftButton
+            onDoubleTapped: root.copyAnswer(model.answer)
+          }
 
           Text {
             id: answerText

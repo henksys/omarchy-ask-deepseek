@@ -21,6 +21,7 @@ omarchy-shell shell toggle io.github.henksys.ask
 
 - Type a question and press Enter (or click Send).
 - The conversation is shown as a thread: each question with its answer.
+- **Double-click** a question or answer to copy it to the clipboard.
 - Escape or the Close button closes the panel.
 - **Clear** empties the conversation and deletes the history file.
 
