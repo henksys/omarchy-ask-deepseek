@@ -76,6 +76,12 @@ omarchy plugin update io.github.henksys.ask
 - curl (used for the DeepSeek API call)
 - A DeepSeek API key (enter it in the **API** tab)
 
+## Fully open code - binaries
+
+- This public repo contains exactly five files: Ask.qml, AskModel.js, manifest.json, README.md, LICENSE — all plain text/source.
+- License: MIT (LICENSE), which is permissive — anyone can view, use, modify, and redistribute it.
+- Everything is inspectable: the whole UI, the logic, and even the API call (it runs curl and parses JSON — all visible in Ask.qml/AskModel.js). There are no compiled artifacts, no obfuscation, nothing hidden.
+
 ## License
 
 MIT
