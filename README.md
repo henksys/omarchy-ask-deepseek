@@ -13,7 +13,15 @@ omarchy plugin add https://github.com/henksys/omarchy-ask-deepseek.git --enable
 
 ## Usage
 
-Press `SUPER + A` to open the panel (or summon it from any launcher):
+To configure `SUPER + A` as your short-key to run the "Deepseek Ask" panel, Add the following lines to your ~/.config/hypr/bindings.lua ( user keybindings) file:
+
+```sh
+-- Ask DeepSeek panel (omarchy-ask-deepseek plugin)
+o.bind("SUPER + A", "Ask DeepSeek", "omarchy-shell shell toggle io.github.henksys.ask")
+```
+
+
+Then press `SUPER + A` to open the panel (or summon it from any launcher):
 
 ```sh
 omarchy-shell shell toggle io.github.henksys.ask
