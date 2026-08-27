@@ -44,9 +44,20 @@ Files shared with the terminal `ask` script:
 | File | Purpose |
 |------|---------|
 | `~/.config/ask/config` | Settings (JSON, editable in the panel or by hand) |
+| `~/.config/ask/key` | DeepSeek API key (optional, see below) |
 | `~/.local/share/ask/history.jsonl` | Conversation history (JSONL, one message per line) |
 
-The API key is read from the `DEEPSEEK_API_KEY` environment variable.
+The API key is read from the `DEEPSEEK_API_KEY` environment variable, falling
+back to `~/.config/ask/key` when the variable is not set. The desktop shell is
+started at login and does not see variables exported only in `~/.bashrc`, so
+on a desktop install create the key file:
+
+```sh
+printf '%s\n' 'your-api-key' > ~/.config/ask/key
+chmod 600 ~/.config/ask/key
+```
+
+The file should be readable only by your user (`chmod 600`).
 
 ## Remove
 

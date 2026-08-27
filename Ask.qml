@@ -20,6 +20,7 @@ Item {
   readonly property string home: Quickshell.env("HOME")
   readonly property string configDir: home + "/.config/ask"
   readonly property string configFile: configDir + "/config"
+  readonly property string keyFile: configDir + "/key"
   readonly property string historyDir: home + "/.local/share/ask"
   readonly property string historyFile: historyDir + "/history.jsonl"
 
@@ -34,6 +35,7 @@ Item {
   property bool apiStdoutDone: false
   property bool apiExited: false
   property int apiExitCode: 0
+  property bool keyReadDone: false
   property bool configReadDone: false
   property bool historyReadDone: false
   property bool savedFlash: false
@@ -223,14 +225,34 @@ Item {
     root.apiExited = false
     root.apiExitCode = 0
 
+    // Prefer the environment variable (as the terminal `ask` does); fall back
+    // to a key file at ~/.config/ask/key so the panel also works when the
+    // desktop shell was started without the variable exported.
     var key = Quickshell.env("DEEPSEEK_API_KEY") || ""
-    if (!key) {
-      root.busy = false
-      root.setLastAnswer("Error: DEEPSEEK_API_KEY is not set.", true)
-      Qt.callLater(function() { inputField.forceActiveFocus() })
+    if (key) {
+      root.sendWithKey(question, key)
       return
     }
 
+    root.keyReadDone = false
+    keyReadProc.command = ["cat", root.keyFile]
+    keyReadProc.running = true
+  }
+
+  function onKeyRead(text) {
+    if (root.keyReadDone) return
+    root.keyReadDone = true
+    var key = String(text || "").trim()
+    if (!key) {
+      root.busy = false
+      root.setLastAnswer("Error: DEEPSEEK_API_KEY is not set and no key file found at " + root.keyFile + ".", true)
+      Qt.callLater(function() { inputField.forceActiveFocus() })
+      return
+    }
+    root.sendWithKey(root.lastQuestion, key)
+  }
+
+  function sendWithKey(question, key) {
     var history = root.saveHistory ? AskModel.parseHistory(root._historyText) : []
     var msgs = AskModel.buildMessages(root.config, history, question)
     var body = JSON.stringify(AskModel.buildRequest(root.config, msgs))
@@ -339,6 +361,17 @@ Item {
     }
     onExited: function(code) {
       if (code !== 0 && !root.historyReadDone) root.onHistoryRead("")
+    }
+  }
+
+  Process {
+    id: keyReadProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.onKeyRead(String(text || ""))
+    }
+    onExited: function(code) {
+      if (code !== 0 && !root.keyReadDone) root.onKeyRead("")
     }
   }
 
