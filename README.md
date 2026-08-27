@@ -90,6 +90,20 @@ omarchy plugin update io.github.henksys.ask
 - License: MIT (LICENSE), which is permissive — anyone can view, use, modify, and redistribute it.
 - Everything is inspectable: the whole UI, the logic, and even the API call (it runs curl and parses JSON — all visible in Ask.qml/AskModel.js). There are no compiled artifacts, no obfuscation, nothing hidden.
 
+## Security
+
+- The API key and the conversation/request body are never passed as command-line
+  arguments. The body goes to curl over stdin and the key is read by curl from a
+  temporary header file (expanded from the process environment, never on a
+  command line).
+- Requests enforce strict limits: connect timeout 10s, transfer timeout 120s
+  (chat) / 30s (models), and a hard response-size cap (10 MiB chat / 1 MiB
+  models). Timed-out, oversized, and truncated responses are rejected.
+- Private files (`~/.config/ask/` and `~/.local/share/ask/`) are kept at 0700
+  and their config/history/key files at 0600. File access refuses symlinks and
+  non-regular files, and writes are atomic (temp file + rename) so they never
+  follow a symlink.
+
 ## License
 
 MIT

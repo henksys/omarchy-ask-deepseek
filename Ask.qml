@@ -60,6 +60,7 @@ Item {
   property string apiKeyStatus: ""
   property string apiKeyFlashText: ""
   property bool apiKeyReadDone: false
+  property string _pendingBody: ""
 
   // Model list state (fetched live from the DeepSeek /models endpoint).
   property var modelOptions: ["deepseek-v4-flash", "deepseek-v4-pro"]
@@ -114,9 +115,23 @@ Item {
 
   // ---- Config ----
 
+  // Read only regular files: refuse symlinks and non-regular files.
+  function guardedReadCommand(path) {
+    return ["sh", "-c", '[ ! -L "$1" ] && [ -f "$1" ] && cat "$1"', "sh", path]
+  }
+
+  // Write to a temp file in a private dir, then atomically move it into place
+  // (replaces a symlink instead of following it) and enforce 0600.
+  function secureWriteCommand(dir, content, target) {
+    return [
+      "sh", "-c", 'install -d -m 700 "$1" && tmp="$1/.tmp.$$"; printf \'%s\' "$2" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$3" && chmod 600 "$3"',
+      "sh", dir, content, target
+    ]
+  }
+
   function loadConfig() {
     root.configReadDone = false
-    configReadProc.command = ["cat", root.configFile]
+    configReadProc.command = root.guardedReadCommand(root.configFile)
     configReadProc.running = true
   }
 
@@ -137,10 +152,7 @@ Item {
 
   function writeConfig(showSaved) {
     var text = AskModel.serializeConfig(root.config)
-    configWriteProc.command = [
-      "sh", "-c", 'mkdir -p "$1" && printf \'%s\' "$2" > "$3"',
-      "sh", root.configDir, text, root.configFile
-    ]
+    configWriteProc.command = root.secureWriteCommand(root.configDir, text, root.configFile)
     configWriteProc.running = true
     if (showSaved) {
       root.savedFlash = true
@@ -157,7 +169,7 @@ Item {
       return
     }
     root.historyReadDone = false
-    historyReadProc.command = ["cat", root.historyFile]
+    historyReadProc.command = root.guardedReadCommand(root.historyFile)
     historyReadProc.running = true
   }
 
@@ -181,7 +193,7 @@ Item {
     var userLine = JSON.stringify({ role: "user", content: question })
     var asstLine = JSON.stringify({ role: "assistant", content: answer })
     historyWriteProc.command = [
-      "sh", "-c", 'mkdir -p "$1" && printf \'%s\\n\' "$2" "$3" >> "$4"',
+      "sh", "-c", 'install -d -m 700 "$1" && [ ! -L "$4" ] && printf \'%s\\n\' "$2" "$3" >> "$4" && chmod 600 "$4"',
       "sh", root.historyDir, userLine, asstLine, root.historyFile
     ]
     historyWriteProc.running = true
@@ -247,7 +259,7 @@ Item {
 
     // The API key always comes from ~/.config/ask/key, managed in the API tab.
     root.keyReadDone = false
-    keyReadProc.command = ["cat", root.keyFile]
+    keyReadProc.command = root.guardedReadCommand(root.keyFile)
     keyReadProc.running = true
   }
 
@@ -269,13 +281,28 @@ Item {
     var msgs = AskModel.buildMessages(root.config, history, question)
     var body = JSON.stringify(AskModel.buildRequest(root.config, msgs))
 
+    // The key reaches curl via the child environment (expanded into a temp
+    // header file by a heredoc, never in any argv) and the request body is
+    // sent over stdin, so neither the secret nor the conversation appears in
+    // a process command line. curl enforces connect/time/size limits so a
+    // stalled or oversized response cannot hang or exhaust the shell.
+    apiProc.environment = { "DEEPSEEK_API_KEY": key }
+    apiProc.stdinEnabled = true
+    root._pendingBody = body
     apiProc.command = [
-      "curl", "-s", "https://api.deepseek.com/chat/completions",
-      "-H", "Content-Type: application/json",
-      "-H", "Authorization: Bearer " + key,
-      "-d", body
+      "bash", "-c",
+      "d=$(mktemp -d) || exit 9\n" +
+      "umask 077\n" +
+      "cat > \"$d/hdr\" <<EOF\n" +
+      "Authorization: Bearer ${DEEPSEEK_API_KEY}\n" +
+      "EOF\n" +
+      "curl -s --connect-timeout 10 --max-time 120 --max-filesize 10485760 -H \"@$d/hdr\" -H 'Content-Type: application/json' https://api.deepseek.com/chat/completions -d @-\n" +
+      "rc=$?\n" +
+      "rm -rf \"$d\"\n" +
+      "exit $rc"
     ]
     apiProc.running = true
+    apiWatchdog.restart()
   }
 
   function tryFinishApi() {
@@ -286,8 +313,15 @@ Item {
     // Guarded by apiStdoutDone/apiExited so a single response is processed
     // exactly once regardless of stream-finished vs exited signal order.
     root.busy = false
+    apiWatchdog.stop()
     if (exitCode !== 0 && root.apiStdout === "") {
-      root.setLastAnswer("Request failed (exit " + exitCode + ").\n" + (root.apiStderr || ""), true)
+      var msg
+      if (exitCode === 2) msg = "Error: no API key set. Open the API tab and enter your DeepSeek API key."
+      else if (exitCode === 28) msg = "Request timed out."
+      else if (exitCode === 63) msg = "Response too large."
+      else if (exitCode === 18) msg = "Incomplete response from the API."
+      else msg = "Request failed (exit " + exitCode + ").\n" + (root.apiStderr || "")
+      root.setLastAnswer(msg, true)
     } else {
       var result = AskModel.parseResponse(root.apiStdout)
       if (result.answer !== undefined) {
@@ -357,7 +391,7 @@ Item {
   function loadApiSettings() {
     root.apiKeyStatus = "The key is read from " + root.keyFile + "."
     root.apiKeyReadDone = false
-    apiKeyReadProc.command = ["cat", root.keyFile]
+    apiKeyReadProc.command = root.guardedReadCommand(root.keyFile)
     apiKeyReadProc.running = true
   }
 
@@ -373,10 +407,7 @@ Item {
       root.apiKeyStatus = "Enter an API key first."
       return
     }
-    keyWriteProc.command = [
-      "sh", "-c", 'mkdir -p "$1" && printf \'%s\' "$2" > "$3" && chmod 600 "$3"',
-      "sh", root.configDir, key, root.keyFile
-    ]
+    keyWriteProc.command = root.secureWriteCommand(root.configDir, key, root.keyFile)
     keyWriteProc.running = true
     root.apiKeyStatus = "Saved to " + root.keyFile + " with owner-only permissions (600)."
     root.apiKeyFlashText = "Saved"
@@ -402,7 +433,7 @@ Item {
     root.modelLoading = true
     root.modelsError = ""
     root.modelsKeyReadDone = false
-    modelsKeyProc.command = ["cat", root.keyFile]
+    modelsKeyProc.command = root.guardedReadCommand(root.keyFile)
     modelsKeyProc.running = true
   }
 
@@ -416,16 +447,26 @@ Item {
       root.modelOptions = root.staticModelOptions()
       return
     }
+    modelsProc.environment = { "DEEPSEEK_API_KEY": key }
     modelsProc.command = [
-      "curl", "-s", "-L", "-X", "GET", "https://api.deepseek.com/models",
-      "-H", "Accept: application/json",
-      "-H", "Authorization: Bearer " + key
+      "bash", "-c",
+      "d=$(mktemp -d) || exit 9\n" +
+      "umask 077\n" +
+      "cat > \"$d/hdr\" <<EOF\n" +
+      "Authorization: Bearer ${DEEPSEEK_API_KEY}\n" +
+      "EOF\n" +
+      "curl -s --connect-timeout 10 --max-time 30 --max-filesize 1048576 -L -X GET -H \"@$d/hdr\" -H 'Accept: application/json' https://api.deepseek.com/models\n" +
+      "rc=$?\n" +
+      "rm -rf \"$d\"\n" +
+      "exit $rc"
     ]
     modelsProc.running = true
+    modelsWatchdog.restart()
   }
 
   function onModelsResponse(text) {
     root.modelLoading = false
+    modelsWatchdog.stop()
     var ids = []
     try {
       var data = JSON.parse(text)
@@ -511,10 +552,19 @@ Item {
       waitForEnd: true
       onStreamFinished: root.onModelsResponse(String(text || ""))
     }
+    onExited: function(code) {
+      modelsWatchdog.stop()
+      if (root.modelLoading) {
+        root.modelLoading = false
+        root.modelsError = "Could not fetch the model list."
+        root.modelOptions = root.staticModelOptions()
+      }
+    }
   }
 
   Process {
     id: apiProc
+    stdinEnabled: true
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -526,6 +576,10 @@ Item {
     stderr: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.apiStderr = String(text || "").trim()
+    }
+    onStarted: function() {
+      apiProc.write(root._pendingBody)
+      apiProc.stdinEnabled = false
     }
     onExited: function(code) {
       root.apiExitCode = code
@@ -591,6 +645,33 @@ Item {
     id: copiedTimer
     interval: 1600
     onTriggered: root.copiedFlash = false
+  }
+
+  // Watchdogs: curl enforces its own --max-time / --max-filesize, but these
+  // guarantee the Process is torn down even if it never exits (e.g. failed to
+  // start) so the shell can never hang on a request.
+  Timer {
+    id: apiWatchdog
+    interval: 130000
+    onTriggered: {
+      if (!root.busy) return
+      apiProc.signal(9)
+      root.busy = false
+      root.apiStdout = ""
+      root.apiStderr = ""
+      root.setLastAnswer("Request timed out.", true)
+      Qt.callLater(function() { inputField.forceActiveFocus() })
+    }
+  }
+
+  Timer {
+    id: modelsWatchdog
+    interval: 35000
+    onTriggered: {
+      root.modelLoading = false
+      root.modelsError = "Could not fetch the model list (timed out)."
+      root.modelOptions = root.staticModelOptions()
+    }
   }
 
   Timer {
