@@ -3,7 +3,7 @@
 Chat with DeepSeek from your Omarchy desktop. A summoned panel with a
 scrollable conversation thread, a settings tab, and an API-key tab, keeping
 context from the same config and history files as the terminal
-[ask single bash script](https://pages.github.com/).
+[ask single bash script](https://github.com/henksys/deepask).
 
 ## Install
 
@@ -42,8 +42,7 @@ Changes are saved to `~/.config/ask/config` and apply immediately.
 
 Enter or change your DeepSeek API key in the **API** tab (panel header). The
 key is saved to `~/.config/ask/key` with owner-only permissions (`chmod 600`),
-and the **Remove stored key** button deletes it. There is no other way to
-configure the key.
+and the **Remove stored key** button deletes it. 
 
 ## Configuration
 
