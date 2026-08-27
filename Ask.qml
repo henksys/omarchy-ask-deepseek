@@ -60,6 +60,12 @@ Item {
   property string apiKeyFlashText: ""
   property bool apiKeyReadDone: false
 
+  // Model list state (fetched live from the DeepSeek /models endpoint).
+  property var modelOptions: ["deepseek-v4-flash", "deepseek-v4-pro"]
+  property bool modelLoading: false
+  property string modelsError: ""
+  property bool modelsKeyReadDone: false
+
   readonly property bool saveHistory: String(root.config.save_history || "n").toLowerCase() === "y"
 
   property color background: Color.menu.background
@@ -378,6 +384,62 @@ Item {
     apiKeyTimer.restart()
   }
 
+  // ---- Model list ----
+
+  function staticModelOptions() {
+    return ["deepseek-v4-flash", "deepseek-v4-pro"]
+  }
+
+  function loadModels() {
+    root.modelLoading = true
+    root.modelsError = ""
+    root.modelsKeyReadDone = false
+    modelsKeyProc.command = ["cat", root.keyFile]
+    modelsKeyProc.running = true
+  }
+
+  function onModelsKeyRead(text) {
+    if (root.modelsKeyReadDone) return
+    root.modelsKeyReadDone = true
+    var key = String(text || "").trim()
+    if (!key) {
+      root.modelLoading = false
+      root.modelsError = "Set an API key in the API tab to load the model list."
+      root.modelOptions = root.staticModelOptions()
+      return
+    }
+    modelsProc.command = [
+      "curl", "-s", "-L", "-X", "GET", "https://api.deepseek.com/models",
+      "-H", "Accept: application/json",
+      "-H", "Authorization: Bearer " + key
+    ]
+    modelsProc.running = true
+  }
+
+  function onModelsResponse(text) {
+    root.modelLoading = false
+    var ids = []
+    try {
+      var data = JSON.parse(text)
+      if (data && Array.isArray(data.data) && data.data.length > 0) {
+        for (var i = 0; i < data.data.length; i++) {
+          if (data.data[i].id) ids.push(String(data.data[i].id))
+        }
+      }
+    } catch (e) {
+      ids = []
+    }
+    if (ids.length === 0) {
+      root.modelsError = "Could not fetch the model list."
+      root.modelOptions = root.staticModelOptions()
+      return
+    }
+    // Keep the currently selected model visible even if it is no longer
+    // listed by the API.
+    if (ids.indexOf(root.s_model) === -1) ids.unshift(root.s_model)
+    root.modelOptions = ids
+  }
+
   // ---- IO processes ----
 
   Process {
@@ -421,6 +483,25 @@ Item {
     }
     onExited: function(code) {
       if (code !== 0 && !root.apiKeyReadDone) root.onApiKeyFileRead("")
+    }
+  }
+
+  Process {
+    id: modelsKeyProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.onModelsKeyRead(String(text || ""))
+    }
+    onExited: function(code) {
+      if (code !== 0 && !root.modelsKeyReadDone) root.onModelsKeyRead("")
+    }
+  }
+
+  Process {
+    id: modelsProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.onModelsResponse(String(text || ""))
     }
   }
 
@@ -595,6 +676,7 @@ Item {
             focusable: true
             onClicked: {
               root.loadSettings()
+              root.loadModels()
               root.currentTab = "settings"
             }
           }
@@ -775,15 +857,37 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                   }
+                  Button {
+                    id: modelsRefreshButton
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Refresh"
+                    fontFamily: Style.font.family
+                    fontSize: Style.font.caption
+                    focusable: true
+                    enabled: !root.modelLoading
+                    onClicked: root.loadModels()
+                  }
                   Dropdown {
                     width: Style.space(220)
                     height: Style.spacing.controlHeight
                     value: root.s_model
-                    options: ["deepseek-v4-flash", "deepseek-v4-pro"]
-                    anchors.right: parent.right
+                    options: root.modelOptions
+                    anchors.right: modelsRefreshButton.left
+                    anchors.rightMargin: Style.spacing.xxl
                     anchors.verticalCenter: parent.verticalCenter
                     onChanged: root.s_model = value
                   }
+                }
+
+                Text {
+                  visible: root.modelLoading || root.modelsError !== ""
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  text: root.modelLoading ? "Loading models..." : root.modelsError
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
                 }
 
                 Item {

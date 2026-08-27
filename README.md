@@ -29,7 +29,7 @@ omarchy-shell shell toggle io.github.henksys.ask
 Opens from the panel header. You can change:
 
 - **Role / system prompt**
-- **Model** (deepseek-v4-flash or deepseek-v4-pro)
+- **Model** (fetched live from DeepSeek; use **Refresh** to update the list)
 - **Thinking** mode and **Reasoning effort**
 - **Temperature** and **Top P**
 - **Output format** (text or json_object)
