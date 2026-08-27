@@ -94,6 +94,15 @@ omarchy plugin update io.github.henksys.ask
 
 MIT
 
-## Screenshot
+## Screenshots
 
+Chat tab:
 ![Screenshot](screenshots/screenshot1_chat.jpg)
+
+Settings tab:
+
+![Screenshot](screenshots/screenshot2_settings.jpg)
+
+API tab:
+
+![Screenshot](screenshots/screenshot3_api.jpg)
