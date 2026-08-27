@@ -911,7 +911,7 @@ Item {
                     anchors.right: modelsRefreshButton.left
                     anchors.rightMargin: Style.spacing.xxl
                     anchors.verticalCenter: parent.verticalCenter
-                    onChanged: root.s_model = value
+                    onChanged: function(v) { root.s_model = v }
                   }
                 }
 
@@ -966,7 +966,7 @@ Item {
                     opacity: root.s_thinking ? 1 : 0.5
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    onChanged: root.s_reasoning_effort = value
+                    onChanged: function(v) { root.s_reasoning_effort = v }
                   }
                 }
 
@@ -997,7 +997,7 @@ Item {
                     maximum: 2
                     step: 0.05
                     value: root.s_temperature
-                    onMoved: root.s_temperature = value
+                    onMoved: function(v) { root.s_temperature = v }
                   }
                   Text {
                     id: tempValue
@@ -1033,7 +1033,7 @@ Item {
                     maximum: 1
                     step: 0.01
                     value: root.s_top_p
-                    onMoved: root.s_top_p = value
+                    onMoved: function(v) { root.s_top_p = v }
                   }
                   Text {
                     id: topPValue
@@ -1068,7 +1068,7 @@ Item {
                     ]
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    onChanged: root.s_response_format = value
+                    onChanged: function(v) { root.s_response_format = v }
                   }
                 }
 
