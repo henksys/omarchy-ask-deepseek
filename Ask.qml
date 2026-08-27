@@ -641,7 +641,7 @@ Item {
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: function(event) {
           if (event.key === Qt.Key_Escape) {
-            if (root.currentTab === "settings" || root.currentTab === "api") {
+            if (root.currentTab === "settings" || root.currentTab === "api" || root.currentTab === "about") {
               root.currentTab = "ask"
               event.accepted = true
               return
@@ -709,6 +709,19 @@ Item {
               root.loadApiSettings()
               root.currentTab = "api"
             }
+          }
+
+          Button {
+            id: aboutTabButton
+            anchors.left: apiTabButton.right
+            anchors.leftMargin: Style.spacing.md
+            anchors.verticalCenter: parent.verticalCenter
+            text: "About"
+            fontFamily: Style.font.family
+            fontSize: Style.font.title
+            selected: root.currentTab === "about"
+            focusable: true
+            onClicked: root.currentTab = "about"
           }
 
           Button {
@@ -1252,6 +1265,145 @@ Item {
                   width: parent.width
                   wrapMode: Text.Wrap
                   text: root.apiKeyStatus
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                }
+              }
+            }
+          }
+
+          // ---- About tab ----
+          Item {
+            id: aboutContent
+            anchors.fill: parent
+            visible: root.currentTab === "about"
+
+            Flickable {
+              id: aboutScroll
+              anchors.fill: parent
+              contentHeight: aboutColumn.height
+              clip: true
+              boundsBehavior: Flickable.StopAtBounds
+
+              Column {
+                id: aboutColumn
+                width: aboutScroll.width
+                spacing: Style.spacing.panelGap
+
+                Text {
+                  text: (root.manifest && root.manifest.name) || "Ask DeepSeek"
+                  color: root.foreground
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.heading
+                  font.bold: true
+                }
+
+                Text {
+                  text: "Version " + ((root.manifest && root.manifest.version) || "?")
+                  color: root.foreground
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                }
+
+                Text {
+                  text: "Released: " + ((root.manifest && root.manifest.releaseDate) || "?")
+                  color: root.foreground
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                }
+
+                Text {
+                  text: "GitHub: https://github.com/henksys/omarchy-ask-deepseek"
+                  color: root.foreground
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                }
+
+                PanelSeparator {
+                  width: parent.width
+                }
+
+                Text {
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  text: (root.manifest && root.manifest.description) || "Chat with DeepSeek from your desktop — ask a question and get an answer, with the conversation shown as a scrollable thread."
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                }
+
+                Text {
+                  text: "Features"
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pointSize: 9
+                  font.bold: true
+                }
+
+                Column {
+                  width: parent.width
+                  spacing: Style.spacing.xs
+
+                  Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: "- Threaded conversation: each question paired with its answer"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                  }
+                  Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: "- Double-click a question or answer to copy it to the clipboard"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                  }
+                  Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: "- Optional conversation history for follow-up context"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                  }
+                  Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: "- Live model list from DeepSeek (Settings - Refresh)"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                  }
+                  Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    text: "- API key stored locally with owner-only permissions (API tab)"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                  }
+                }
+
+                PanelSeparator {
+                  width: parent.width
+                }
+
+                Text {
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  text: "All open source scripting, no use of binaries: the whole UI, the logic, and even the API call (it runs curl and parses JSON — all visible in Ask.qml/AskModel.js). There are no compiled artifacts, no obfuscation."
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                }
+
+                Text {
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  text: "Licensed under the MIT License."
                   color: Qt.darker(root.foreground, 1.4)
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
