@@ -1314,10 +1314,13 @@ Item {
                 }
 
                 Text {
-                  text: "GitHub: https://github.com/henksys/omarchy-ask-deepseek"
+                  text: 'GitHub: <a href="https://github.com/henksys/omarchy-ask-deepseek" style="text-decoration:none">https://github.com/henksys/omarchy-ask-deepseek</a>'
+                  textFormat: Text.StyledText
                   color: root.foreground
+                  linkColor: Style.selectedStateColor(root.foreground, root.accent)
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
+                  onLinkActivated: function(link) { Qt.openUrlExternally(link) }
                 }
 
                 PanelSeparator {
@@ -1337,7 +1340,7 @@ Item {
                   text: "Features"
                   color: Qt.darker(root.foreground, 1.4)
                   font.family: Style.font.family
-                  font.pointSize: 9
+                  font.pixelSize: Style.font.body
                   font.bold: true
                 }
 
@@ -1351,7 +1354,7 @@ Item {
                     text: "- Threaded conversation: each question paired with its answer"
                     color: Qt.darker(root.foreground, 1.4)
                     font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.body
                   }
                   Text {
                     width: parent.width
@@ -1359,7 +1362,7 @@ Item {
                     text: "- Double-click a question or answer to copy it to the clipboard"
                     color: Qt.darker(root.foreground, 1.4)
                     font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.body
                   }
                   Text {
                     width: parent.width
@@ -1367,7 +1370,7 @@ Item {
                     text: "- Optional conversation history for follow-up context"
                     color: Qt.darker(root.foreground, 1.4)
                     font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.body
                   }
                   Text {
                     width: parent.width
@@ -1375,7 +1378,7 @@ Item {
                     text: "- Live model list from DeepSeek (Settings - Refresh)"
                     color: Qt.darker(root.foreground, 1.4)
                     font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.body
                   }
                   Text {
                     width: parent.width
@@ -1383,7 +1386,7 @@ Item {
                     text: "- API key stored locally with owner-only permissions (API tab)"
                     color: Qt.darker(root.foreground, 1.4)
                     font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.body
                   }
                 }
 
@@ -1397,7 +1400,7 @@ Item {
                   text: "All open source scripting, no use of binaries: the whole UI, the logic, and even the API call (it runs curl and parses JSON — all visible in Ask.qml/AskModel.js). There are no compiled artifacts, no obfuscation."
                   color: Qt.darker(root.foreground, 1.4)
                   font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  font.pixelSize: Style.font.body
                 }
 
                 Text {
@@ -1406,7 +1409,7 @@ Item {
                   text: "Licensed under the MIT License."
                   color: Qt.darker(root.foreground, 1.4)
                   font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  font.pixelSize: Style.font.body
                 }
               }
             }
