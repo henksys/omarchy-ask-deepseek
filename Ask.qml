@@ -122,8 +122,9 @@ Item {
 
   // ---- Config ----
 
-  // Descriptor-based safe read: open with O_NOFOLLOW, verify a regular file,
-  // and cap the bytes. No check-then-open race, no symlink/FIFO following.
+  // Descriptor-based safe read: open with O_NOFOLLOW|O_NONBLOCK so a symlink is
+  // refused and a FIFO/device cannot block the open, verify a regular file via
+  // fstat, and reject files larger than the cap instead of silently truncating.
   function safeReadCommand(path, cap) {
     return [
       "python3", "-c",
@@ -131,14 +132,16 @@ Item {
       "p = sys.argv[1]\n" +
       "lim = int(sys.argv[2])\n" +
       "try:\n" +
-      "    fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW)\n" +
+      "    fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n" +
       "except OSError:\n" +
       "    sys.exit(1)\n" +
       "try:\n" +
       "    st = os.fstat(fd)\n" +
       "    if not stat.S_ISREG(st.st_mode):\n" +
       "        sys.exit(1)\n" +
-      "    data = os.read(fd, lim)\n" +
+      "    data = os.read(fd, lim + 1)\n" +
+      "    if len(data) > lim:\n" +
+      "        sys.exit(2)\n" +
       "    sys.stdout.buffer.write(data)\n" +
       "finally:\n" +
       "    os.close(fd)\n",
