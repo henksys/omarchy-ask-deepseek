@@ -94,6 +94,7 @@ Item {
   function open(payloadJson) {
     root.currentTab = "ask"
     root.opened = true
+    root.sweepTempFiles()
     if (!root.loaded) {
       root.loadConfig()
     } else if (root.saveHistory) {
@@ -147,13 +148,26 @@ Item {
 
   // Content is delivered over stdin (never argv/env); write to an
   // unpredictable same-directory temp file (0600) then atomically move it into
-  // place (replaces a pre-planted symlink instead of following it).
+  // place (replaces a pre-planted symlink instead of following it). A trap
+  // removes the temp if the write is interrupted (e.g. the shell restarts),
+  // so stale .tmp.* files do not accumulate.
   function secureWriteStdinCommand(dir, target) {
     return [
       "bash", "-c",
-      'install -d -m 700 "$1" && tmp=$(mktemp "$1/.tmp.XXXXXX") && chmod 600 "$tmp" && cat > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$2" && chmod 600 "$2"',
+      "install -d -m 700 \"$1\" && tmp=$(mktemp \"$1/.tmp.XXXXXX\") && trap 'rm -f \"$tmp\"' EXIT INT TERM HUP && chmod 600 \"$tmp\" && cat > \"$tmp\" && chmod 600 \"$tmp\" && mv -f \"$tmp\" \"$2\" && chmod 600 \"$2\"",
       "bash", dir, target
     ]
+  }
+
+  // Remove leftover temp files from interrupted writes. Anything older than a
+  // minute is stale (writes take milliseconds), so an in-flight write is never
+  // affected.
+  function sweepTempFiles() {
+    sweepProc.command = [
+      "sh", "-c", 'find "$1" "$2" -maxdepth 1 -type f -name ".tmp.*" -mmin +1 -delete 2>/dev/null',
+      "sh", root.configDir, root.historyDir
+    ]
+    sweepProc.running = true
   }
 
   function loadConfig() {
@@ -668,6 +682,14 @@ Item {
     onExited: function(code) {
       // Empty handler: a Process without any signal handler is not reliably
       // started, so keep this hook to guarantee the rm actually runs.
+    }
+  }
+
+  Process {
+    id: sweepProc
+    onExited: function(code) {
+      // Empty handler: a Process without any signal handler is not reliably
+      // started, so keep this hook to guarantee the sweep actually runs.
     }
   }
 
