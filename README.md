@@ -85,6 +85,7 @@ omarchy plugin update io.github.henksys.ask
 
 - Omarchy (Hyprland + quickshell). Tested with Omarchy 4.0.1-1 and Quickshell version 0.3.1.
 - curl (used for the DeepSeek API call)
+- python3 (descriptor-based safe file reads)
 - A DeepSeek API key (enter it in the **API** tab)
 
 ## Fully open code - NO binaries (except for the screenshot directory)
@@ -96,16 +97,20 @@ omarchy plugin update io.github.henksys.ask
 ## Security
 
 - The API key and the conversation/request body are never passed as command-line
-  arguments. The body goes to curl over stdin and the key is read by curl from a
-  temporary header file (expanded from the process environment, never on a
-  command line).
+  arguments and never placed in a process environment. The key is handed to a
+  header-writer over a private stdin pipe into a 0600 header file that curl
+  reads; the request body goes to curl over stdin. Nothing sensitive appears in
+  any process argv or environ.
 - Requests enforce strict limits: connect timeout 10s, transfer timeout 120s
   (chat) / 30s (models), and a hard response-size cap (10 MiB chat / 1 MiB
-  models). Timed-out, oversized, and truncated responses are rejected.
+  models). Timed-out, oversized, and truncated responses are rejected. Requests
+  are HTTPS-only and never follow redirects, so credentials cannot be forwarded
+  cross-origin.
 - Private files (`~/.config/ask/` and `~/.local/share/ask/`) are kept at 0700
-  and their config/history/key files at 0600. File access refuses symlinks and
-  non-regular files, and writes are atomic (temp file + rename) so they never
-  follow a symlink.
+  and their config/history/key files at 0600. Reads use a descriptor-based
+  check (O_NOFOLLOW, regular-file only, byte-capped); writes use unpredictable
+  same-directory temp files with an atomic rename, so nothing follows a
+  symlink and no check-then-open race exists.
 
 ## License
 

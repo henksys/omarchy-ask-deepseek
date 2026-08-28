@@ -60,7 +60,13 @@ Item {
   property string apiKeyStatus: ""
   property string apiKeyFlashText: ""
   property bool apiKeyReadDone: false
+  property string _pendingConfig: ""
+  property string _pendingKey: ""
+  property string _pendingHistory: ""
+  property string _pendingHeader: ""
   property string _pendingBody: ""
+  property string _pendingRequestType: ""
+  readonly property string headerFile: configDir + "/.header"
 
   // Model list state (fetched live from the DeepSeek /models endpoint).
   property var modelOptions: ["deepseek-v4-flash", "deepseek-v4-pro"]
@@ -115,23 +121,44 @@ Item {
 
   // ---- Config ----
 
-  // Read only regular files: refuse symlinks and non-regular files.
-  function guardedReadCommand(path) {
-    return ["sh", "-c", '[ ! -L "$1" ] && [ -f "$1" ] && cat "$1"', "sh", path]
+  // Descriptor-based safe read: open with O_NOFOLLOW, verify a regular file,
+  // and cap the bytes. No check-then-open race, no symlink/FIFO following.
+  function safeReadCommand(path, cap) {
+    return [
+      "python3", "-c",
+      "import os, stat, sys\n" +
+      "p = sys.argv[1]\n" +
+      "lim = int(sys.argv[2])\n" +
+      "try:\n" +
+      "    fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW)\n" +
+      "except OSError:\n" +
+      "    sys.exit(1)\n" +
+      "try:\n" +
+      "    st = os.fstat(fd)\n" +
+      "    if not stat.S_ISREG(st.st_mode):\n" +
+      "        sys.exit(1)\n" +
+      "    data = os.read(fd, lim)\n" +
+      "    sys.stdout.buffer.write(data)\n" +
+      "finally:\n" +
+      "    os.close(fd)\n",
+      path, String(cap)
+    ]
   }
 
-  // Write to a temp file in a private dir, then atomically move it into place
-  // (replaces a symlink instead of following it) and enforce 0600.
-  function secureWriteCommand(dir, content, target) {
+  // Content is delivered over stdin (never argv/env); write to an
+  // unpredictable same-directory temp file (0600) then atomically move it into
+  // place (replaces a pre-planted symlink instead of following it).
+  function secureWriteStdinCommand(dir, target) {
     return [
-      "sh", "-c", 'install -d -m 700 "$1" && tmp="$1/.tmp.$$"; printf \'%s\' "$2" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$3" && chmod 600 "$3"',
-      "sh", dir, content, target
+      "bash", "-c",
+      'install -d -m 700 "$1" && tmp=$(mktemp "$1/.tmp.XXXXXX") && chmod 600 "$tmp" && cat > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$2" && chmod 600 "$2"',
+      "bash", dir, target
     ]
   }
 
   function loadConfig() {
     root.configReadDone = false
-    configReadProc.command = root.guardedReadCommand(root.configFile)
+    configReadProc.command = root.safeReadCommand(root.configFile, 1048576)
     configReadProc.running = true
   }
 
@@ -152,7 +179,8 @@ Item {
 
   function writeConfig(showSaved) {
     var text = AskModel.serializeConfig(root.config)
-    configWriteProc.command = root.secureWriteCommand(root.configDir, text, root.configFile)
+    root._pendingConfig = text
+    configWriteProc.command = root.secureWriteStdinCommand(root.configDir, root.configFile)
     configWriteProc.running = true
     if (showSaved) {
       root.savedFlash = true
@@ -169,7 +197,7 @@ Item {
       return
     }
     root.historyReadDone = false
-    historyReadProc.command = root.guardedReadCommand(root.historyFile)
+    historyReadProc.command = root.safeReadCommand(root.historyFile, 8388608)
     historyReadProc.running = true
   }
 
@@ -190,12 +218,12 @@ Item {
   }
 
   function writeHistory(question, answer) {
-    var userLine = JSON.stringify({ role: "user", content: question })
-    var asstLine = JSON.stringify({ role: "assistant", content: answer })
-    historyWriteProc.command = [
-      "sh", "-c", 'install -d -m 700 "$1" && [ ! -L "$4" ] && printf \'%s\\n\' "$2" "$3" >> "$4" && chmod 600 "$4"',
-      "sh", root.historyDir, userLine, asstLine, root.historyFile
-    ]
+    // Keep history in memory and rewrite the whole file atomically over stdin;
+    // no append redirection, so no check-then-open race on the history file.
+    root._historyText += JSON.stringify({ role: "user", content: question }) + "\n"
+    root._historyText += JSON.stringify({ role: "assistant", content: answer }) + "\n"
+    root._pendingHistory = root._historyText
+    historyWriteProc.command = root.secureWriteStdinCommand(root.historyDir, root.historyFile)
     historyWriteProc.running = true
   }
 
@@ -259,7 +287,7 @@ Item {
 
     // The API key always comes from ~/.config/ask/key, managed in the API tab.
     root.keyReadDone = false
-    keyReadProc.command = root.guardedReadCommand(root.keyFile)
+    keyReadProc.command = root.safeReadCommand(root.keyFile, 4096)
     keyReadProc.running = true
   }
 
@@ -273,33 +301,41 @@ Item {
       Qt.callLater(function() { inputField.forceActiveFocus() })
       return
     }
-    root.sendWithKey(root.lastQuestion, key)
+    // The key is handed to the header-writer over its stdin (never argv/env);
+    // curl then reads the header from the resulting 0600 file, and the request
+    // body goes to curl over stdin. curl enforces connect/time/size limits and
+    // HTTPS-only so a stalled/oversized response or redirect cannot leak or
+    // hang the shell.
+    root._pendingHeader = "Authorization: Bearer " + key
+    root._pendingRequestType = "chat"
+    root._pendingBody = root.buildRequestBody(root.lastQuestion)
+    headerWriteProc.stdinEnabled = true
+    headerWriteProc.command = root.secureWriteStdinCommand(root.configDir, root.headerFile)
+    headerWriteProc.running = true
   }
 
-  function sendWithKey(question, key) {
+  function buildRequestBody(question) {
     var history = root.saveHistory ? AskModel.parseHistory(root._historyText) : []
     var msgs = AskModel.buildMessages(root.config, history, question)
-    var body = JSON.stringify(AskModel.buildRequest(root.config, msgs))
+    return JSON.stringify(AskModel.buildRequest(root.config, msgs))
+  }
 
-    // The key reaches curl via the child environment (expanded into a temp
-    // header file by a heredoc, never in any argv) and the request body is
-    // sent over stdin, so neither the secret nor the conversation appears in
-    // a process command line. curl enforces connect/time/size limits so a
-    // stalled or oversized response cannot hang or exhaust the shell.
-    apiProc.environment = { "DEEPSEEK_API_KEY": key }
+  function launchPendingRequest() {
+    if (root._pendingRequestType === "models") {
+      modelsProc.command = [
+        "bash", "-c",
+        "curl -s --connect-timeout 10 --max-time 30 --max-filesize 1048576 --proto '=https' -X GET -H \"@$1\" -H 'Accept: application/json' https://api.deepseek.com/models",
+        "bash", root.headerFile
+      ]
+      modelsProc.running = true
+      modelsWatchdog.restart()
+      return
+    }
     apiProc.stdinEnabled = true
-    root._pendingBody = body
     apiProc.command = [
       "bash", "-c",
-      "d=$(mktemp -d) || exit 9\n" +
-      "umask 077\n" +
-      "cat > \"$d/hdr\" <<EOF\n" +
-      "Authorization: Bearer ${DEEPSEEK_API_KEY}\n" +
-      "EOF\n" +
-      "curl -s --connect-timeout 10 --max-time 120 --max-filesize 10485760 -H \"@$d/hdr\" -H 'Content-Type: application/json' https://api.deepseek.com/chat/completions -d @-\n" +
-      "rc=$?\n" +
-      "rm -rf \"$d\"\n" +
-      "exit $rc"
+      "curl -s --connect-timeout 10 --max-time 120 --max-filesize 10485760 --proto '=https' -H \"@$1\" -H 'Content-Type: application/json' https://api.deepseek.com/chat/completions -d @-",
+      "bash", root.headerFile
     ]
     apiProc.running = true
     apiWatchdog.restart()
@@ -326,13 +362,7 @@ Item {
       var result = AskModel.parseResponse(root.apiStdout)
       if (result.answer !== undefined) {
         root.setLastAnswer(result.answer, false)
-        if (root.saveHistory) {
-          root.writeHistory(root.lastQuestion, result.answer)
-          // Keep the in-memory history in sync so the next question's
-          // context includes this exchange without needing a reload.
-          root._historyText += JSON.stringify({ role: "user", content: root.lastQuestion }) + "\n"
-          root._historyText += JSON.stringify({ role: "assistant", content: result.answer }) + "\n"
-        }
+        if (root.saveHistory) root.writeHistory(root.lastQuestion, result.answer)
       } else if (result.error !== undefined) {
         root.setLastAnswer(result.error, true)
       } else {
@@ -391,7 +421,7 @@ Item {
   function loadApiSettings() {
     root.apiKeyStatus = "The key is read from " + root.keyFile + "."
     root.apiKeyReadDone = false
-    apiKeyReadProc.command = root.guardedReadCommand(root.keyFile)
+    apiKeyReadProc.command = root.safeReadCommand(root.keyFile, 4096)
     apiKeyReadProc.running = true
   }
 
@@ -407,7 +437,8 @@ Item {
       root.apiKeyStatus = "Enter an API key first."
       return
     }
-    keyWriteProc.command = root.secureWriteCommand(root.configDir, key, root.keyFile)
+    root._pendingKey = key
+    keyWriteProc.command = root.secureWriteStdinCommand(root.configDir, root.keyFile)
     keyWriteProc.running = true
     root.apiKeyStatus = "Saved to " + root.keyFile + " with owner-only permissions (600)."
     root.apiKeyFlashText = "Saved"
@@ -433,7 +464,7 @@ Item {
     root.modelLoading = true
     root.modelsError = ""
     root.modelsKeyReadDone = false
-    modelsKeyProc.command = root.guardedReadCommand(root.keyFile)
+    modelsKeyProc.command = root.safeReadCommand(root.keyFile, 4096)
     modelsKeyProc.running = true
   }
 
@@ -447,21 +478,11 @@ Item {
       root.modelOptions = root.staticModelOptions()
       return
     }
-    modelsProc.environment = { "DEEPSEEK_API_KEY": key }
-    modelsProc.command = [
-      "bash", "-c",
-      "d=$(mktemp -d) || exit 9\n" +
-      "umask 077\n" +
-      "cat > \"$d/hdr\" <<EOF\n" +
-      "Authorization: Bearer ${DEEPSEEK_API_KEY}\n" +
-      "EOF\n" +
-      "curl -s --connect-timeout 10 --max-time 30 --max-filesize 1048576 -L -X GET -H \"@$d/hdr\" -H 'Accept: application/json' https://api.deepseek.com/models\n" +
-      "rc=$?\n" +
-      "rm -rf \"$d\"\n" +
-      "exit $rc"
-    ]
-    modelsProc.running = true
-    modelsWatchdog.restart()
+    root._pendingHeader = "Authorization: Bearer " + key
+    root._pendingRequestType = "models"
+    headerWriteProc.stdinEnabled = true
+    headerWriteProc.command = root.secureWriteStdinCommand(root.configDir, root.headerFile)
+    headerWriteProc.running = true
   }
 
   function onModelsResponse(text) {
@@ -590,14 +611,53 @@ Item {
 
   Process {
     id: historyWriteProc
+    stdinEnabled: true
+    onStarted: function() {
+      historyWriteProc.write(root._pendingHistory)
+      historyWriteProc.stdinEnabled = false
+    }
   }
 
   Process {
     id: configWriteProc
+    stdinEnabled: true
+    onStarted: function() {
+      configWriteProc.write(root._pendingConfig)
+      configWriteProc.stdinEnabled = false
+    }
   }
 
   Process {
     id: keyWriteProc
+    stdinEnabled: true
+    onStarted: function() {
+      keyWriteProc.write(root._pendingKey)
+      keyWriteProc.stdinEnabled = false
+    }
+  }
+
+  Process {
+    id: headerWriteProc
+    stdinEnabled: true
+    onStarted: function() {
+      headerWriteProc.write(root._pendingHeader)
+      headerWriteProc.stdinEnabled = false
+    }
+    onExited: function(code) {
+      if (code !== 0) {
+        if (root._pendingRequestType === "models") {
+          root.modelLoading = false
+          root.modelsError = "Could not prepare the model request."
+          root.modelOptions = root.staticModelOptions()
+        } else {
+          root.busy = false
+          root.setLastAnswer("Could not prepare the request.", true)
+          Qt.callLater(function() { inputField.forceActiveFocus() })
+        }
+        return
+      }
+      root.launchPendingRequest()
+    }
   }
 
   Process {
