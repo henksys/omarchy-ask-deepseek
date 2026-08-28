@@ -180,6 +180,7 @@ Item {
   function writeConfig(showSaved) {
     var text = AskModel.serializeConfig(root.config)
     root._pendingConfig = text
+    configWriteProc.stdinEnabled = true
     configWriteProc.command = root.secureWriteStdinCommand(root.configDir, root.configFile)
     configWriteProc.running = true
     if (showSaved) {
@@ -223,6 +224,7 @@ Item {
     root._historyText += JSON.stringify({ role: "user", content: question }) + "\n"
     root._historyText += JSON.stringify({ role: "assistant", content: answer }) + "\n"
     root._pendingHistory = root._historyText
+    historyWriteProc.stdinEnabled = true
     historyWriteProc.command = root.secureWriteStdinCommand(root.historyDir, root.historyFile)
     historyWriteProc.running = true
   }
@@ -438,6 +440,7 @@ Item {
       return
     }
     root._pendingKey = key
+    keyWriteProc.stdinEnabled = true
     keyWriteProc.command = root.secureWriteStdinCommand(root.configDir, root.keyFile)
     keyWriteProc.running = true
     root.apiKeyStatus = "Saved to " + root.keyFile + " with owner-only permissions (600)."
