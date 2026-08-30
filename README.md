@@ -1,12 +1,38 @@
-# Ask DeepSeek
+# Overview 
 
-Chat with DeepSeek from your desktop — ask a question and get an answer, with the conversation shown as a scrollable thread.
+### Ask DeepSeek
 
-- Threaded conversation: each question paired with its answer
+Chat with DeepSeek from your desktop — ask a question and get an answer in a pane that appears in the middle of your screen, with the conversation shown as a scrollable thread. This plugin is mostly usefull for if you suddenly have a question and you want a quick answer.
+
+Note: To make use of this plugin, you need to have a deepseek API key.
+
+Some features:
+
+- Very fast threaded conversation: each question paired with its answer
 - Double-click a question or answer to copy it to the clipboard
-- Optional conversation history for follow-up context
-- Live model list from DeepSeek (Settings - Refresh)
-- API key stored locally with owner-only permissions (API tab)
+- Optional conversation history for follow-up context 
+- When history is enabled in the settings, You can clear history in the chat panel at anytime to start with fresh context.
+- Live model list from DeepSeek (Settings - Refresh). Set the model you prefer.
+- Options like role, Temperature can be set to your liking
+
+Usage:
+
+To configure `SUPER + A` as your short-key to run the "Deepseek Ask" panel, Add the following lines to your ~/.config/hypr/bindings.lua ( user keybindings) file:
+
+```sh
+-- Ask DeepSeek panel (omarchy-ask-deepseek plugin)
+o.bind("SUPER + A", "Ask DeepSeek", "omarchy-shell shell toggle io.github.henksys.ask")
+```
+
+Then press `SUPER + A` to open the panel (or summon it from any launcher):
+
+```sh
+omarchy-shell shell toggle io.github.henksys.ask
+```
+Sceenshot of the Chat pane:
+![Example_Chat_Pane](https://raw.githubusercontent.com/henksys/omarchy-ask-deepseek/refs/heads/main/screenshots/screenshot1_chat.jpg)
+
+
 
 ## Install
 
