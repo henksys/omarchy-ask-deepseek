@@ -2,7 +2,7 @@
 
 ### Ask DeepSeek
 
-**Version:** 1.1.0
+**Current Version:** 1.1.0 ( added different pane sizes, can be set in the Settings tab, and Selectable messages, see below)
 
 Chat with DeepSeek from your desktop — ask a question and get an answer in a pane that appears in the middle of your screen, with the conversation shown as a scrollable thread. This plugin is mostly usefull for if you suddenly have a question and you want a quick answer.
 
@@ -11,26 +11,13 @@ Note: To make use of this plugin, you need to have a deepseek API key.
 Some features:
 
 - Very fast threaded conversation: each question paired with its answer
-- Selectable messages: drag to select part or all of a message to copy it to the clipboard; double-click selects the whole message
+- Selectable messages: drag with left-mouse button to select part or all of a message to copy it to the clipboard; double-click selects the whole message
 - Optional conversation history for follow-up context 
 - When history is enabled in the settings, You can clear history in the chat panel at anytime to start with fresh context.
 - Live model list from DeepSeek (Settings - Refresh). Set the model you prefer.
 - Options like role, Temperature can be set to your liking
 
-Usage:
 
-To configure `SUPER + A` as your short-key to run the "Deepseek Ask" panel, Add the following lines to your ~/.config/hypr/bindings.lua ( user keybindings) file:
-
-```sh
--- Ask DeepSeek panel (omarchy-ask-deepseek plugin)
-o.bind("SUPER + A", "Ask DeepSeek", "omarchy-shell shell toggle io.github.henksys.ask")
-```
-
-Then press `SUPER + A` to open the panel (or summon it from any launcher):
-
-```sh
-omarchy-shell shell toggle io.github.henksys.ask
-```
 Sceenshot of the Chat pane:
 ![Example_Chat_Pane](https://raw.githubusercontent.com/henksys/omarchy-ask-deepseek/refs/heads/main/screenshots/screenshot1_chat.jpg)
 
@@ -112,7 +99,7 @@ omarchy plugin update io.github.henksys.ask
 
 ## Requirements
 
-- Omarchy (Hyprland + quickshell). Tested with Omarchy 4.0.1-1 and Quickshell version 0.3.1.
+- Omarchy (Hyprland + quickshell). Tested with Omarchy Quattro.
 - curl (used for the DeepSeek API call)
 - python3 (descriptor-based safe file reads)
 - A DeepSeek API key (enter it in the **API** tab)
