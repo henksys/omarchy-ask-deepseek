@@ -34,7 +34,8 @@ function defaultConfig() {
     thinking: "enabled",
     reasoning_effort: "high",
     response_format: "text",
-    save_history: "n"
+    save_history: "n",
+    screensize: "small"
   }
 }
 

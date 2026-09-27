@@ -44,6 +44,7 @@ Item {
   property bool copiedFlash: false
   property int scrollTicks: 0
   property string _historyText: ""
+  property string _pendingSelection: ""
 
   // Settings-form scratch state (bound by the Settings tab controls).
   property string s_role: ""
@@ -54,6 +55,7 @@ Item {
   property string s_reasoning_effort: "high"
   property string s_response_format: "text"
   property bool s_save_history: false
+  property string s_screensize: "small"
 
   // API tab state.
   property string s_api_key: ""
@@ -85,9 +87,30 @@ Item {
   property int contentMargin: Style.spacing.panelPadding
   property int headerHeight: Math.max(Style.space(40), Style.font.title + Style.spacing.controlPaddingY * 2)
 
-  // About half the desktop size.
-  readonly property int cardWidth: Math.max(Style.space(320), Math.min(Style.space(920), Math.round(panel.width * 0.5)))
-  readonly property int cardHeight: Math.max(Style.space(240), Math.min(Style.space(760), Math.round(panel.height * 0.55)))
+  // Height of the Omarchy top bar; "full" sits below it like a maximized
+  // window, so the bar stays visible.
+  readonly property int barHeight: Style.bar.sizeHorizontal
+
+  // Panel size, driven by the "Screensize" setting:
+  //   small  - about half the desktop (the original size)
+  //   medium - small + 20 percentage points of the screen
+  //   full   - full width, below the top bar (like a maximized window)
+  property int cardWidth: {
+    if (root.config.screensize === "full") return panel.width
+    if (root.config.screensize === "medium")
+      return Math.max(Style.space(320), Math.round(panel.width * 0.7))
+    return Math.max(Style.space(320), Math.min(Style.space(920), Math.round(panel.width * 0.5)))
+  }
+  property int cardHeight: {
+    if (root.config.screensize === "full") return panel.height - root.barHeight
+    if (root.config.screensize === "medium")
+      return Math.max(Style.space(240), Math.round(panel.height * 0.75))
+    return Math.max(Style.space(240), Math.min(Style.space(760), Math.round(panel.height * 0.55)))
+  }
+  // "full" is anchored to the top below the bar (edge-to-edge); the other
+  // sizes stay centered.
+  property int cardX: root.config.screensize === "full" ? 0 : Math.round((panel.width - root.cardWidth) / 2)
+  property int cardY: root.config.screensize === "full" ? root.barHeight : Math.round((panel.height - root.cardHeight) / 2)
 
   // ---- Lifecycle (same shape contract as Omarchy plugins) ----
 
@@ -404,6 +427,7 @@ Item {
     root.s_reasoning_effort = String(root.config.reasoning_effort || "high")
     root.s_response_format = String(root.config.response_format || "text")
     root.s_save_history = String(root.config.save_history || "n").toLowerCase() === "y"
+    root.s_screensize = String(root.config.screensize || "small")
   }
 
   function saveSettings() {
@@ -415,7 +439,8 @@ Item {
       thinking: root.s_thinking ? "enabled" : "disabled",
       reasoning_effort: root.s_reasoning_effort,
       response_format: root.s_response_format,
-      save_history: root.s_save_history ? "y" : "n"
+      save_history: root.s_save_history ? "y" : "n",
+      screensize: root.s_screensize
     }
     root.writeConfig(true)
     root.loadHistoryIfEnabled()
@@ -735,6 +760,17 @@ Item {
     onTriggered: root.copiedFlash = false
   }
 
+  Timer {
+    id: copyTimer
+    interval: 200
+    onTriggered: {
+      if (root._pendingSelection !== "") {
+        root.copyAnswer(root._pendingSelection)
+        root._pendingSelection = ""
+      }
+    }
+  }
+
   // Watchdogs: curl enforces its own --max-time / --max-filesize, but these
   // guarantee the Process is torn down even if it never exits (e.g. failed to
   // start) so the shell can never hang on a request.
@@ -792,10 +828,11 @@ Item {
 
     BorderSurface {
       id: card
+      x: root.cardX
+      y: root.cardY
       width: root.cardWidth
       height: root.cardHeight
       radius: root.cornerRadius
-      anchors.centerIn: parent
       color: root.background
       borderSpec: root.borderSpec
       padding: root.contentMargin
@@ -1043,6 +1080,30 @@ Item {
                 width: settingsScroll.width
                 spacing: Style.spacing.panelGap
 
+                // Screensize
+                Item {
+                  width: parent.width
+                  height: Style.spacing.controlHeight
+                  Text {
+                    text: "Screensize"
+                    color: Qt.darker(root.foreground, 1.4)
+                    font.family: Style.font.family
+                    font.pointSize: 9
+                    font.bold: true
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                  Dropdown {
+                    width: Style.space(220)
+                    height: Style.spacing.controlHeight
+                    value: root.s_screensize
+                    options: ["small", "medium", "full"]
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    onChanged: function(v) { root.s_screensize = v }
+                  }
+                }
+
                 // Role
                 Column {
                   width: parent.width
@@ -1289,34 +1350,12 @@ Item {
 
                 Item {
                   width: parent.width
-                  height: Style.spacing.controlHeight
-
-                  Button {
-                    id: saveButton
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Save settings"
-                    fontFamily: Style.font.family
-                    fontSize: Style.font.body
-                    focusable: true
-                    onClicked: root.saveSettings()
-                  }
-
-                  Text {
-                    visible: root.savedFlash
-                    text: "Saved"
-                    color: Style.selectedStateColor(root.foreground, root.accent)
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
-                    anchors.left: saveButton.right
-                    anchors.leftMargin: Style.spacing.xxl
-                    anchors.verticalCenter: parent.verticalCenter
-                  }
+                  height: Style.spacing.controlHeight * 2 + Style.spacing.md
 
                   Button {
                     id: restoreButton
                     anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.top: parent.top
                     text: "Restore defaults"
                     fontFamily: Style.font.family
                     fontSize: Style.font.body
@@ -1332,7 +1371,30 @@ Item {
                     font.pixelSize: Style.font.body
                     anchors.right: restoreButton.left
                     anchors.rightMargin: Style.spacing.xxl
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenter: restoreButton.verticalCenter
+                  }
+
+                  Button {
+                    id: saveButton
+                    anchors.right: parent.right
+                    anchors.top: restoreButton.bottom
+                    anchors.topMargin: Style.spacing.md
+                    text: "Save settings"
+                    fontFamily: Style.font.family
+                    fontSize: Style.font.body
+                    focusable: true
+                    onClicked: root.saveSettings()
+                  }
+
+                  Text {
+                    visible: root.savedFlash
+                    text: "Saved"
+                    color: Style.selectedStateColor(root.foreground, root.accent)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    anchors.right: saveButton.left
+                    anchors.rightMargin: Style.spacing.xxl
+                    anchors.verticalCenter: saveButton.verticalCenter
                   }
                 }
 
@@ -1528,7 +1590,7 @@ Item {
                   Text {
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: "- Double-click a question or answer to copy it to the clipboard"
+                    text: "- Selectable messages: drag to select part or all of a message to copy it to the clipboard; double-click selects the whole message"
                     color: Qt.darker(root.foreground, 1.4)
                     font.family: Style.font.family
                     font.pixelSize: Style.font.body
@@ -1616,10 +1678,10 @@ Item {
 
           TapHandler {
             acceptedButtons: Qt.LeftButton
-            onDoubleTapped: root.copyAnswer(model.question)
+            onDoubleTapped: questionText.selectAll()
           }
 
-          Text {
+          TextEdit {
             id: questionText
             anchors.left: parent.left
             anchors.right: parent.right
@@ -1631,8 +1693,19 @@ Item {
             color: Style.selectedStateColor(root.foreground, root.accent)
             font.family: Style.font.family
             font.pixelSize: Style.font.body
-            wrapMode: Text.Wrap
-            textFormat: Text.PlainText
+            wrapMode: TextEdit.Wrap
+            textFormat: TextEdit.PlainText
+            readOnly: true
+            selectByMouse: true
+            activeFocusOnTab: false
+            cursorVisible: false
+            selectionColor: Style.selectionFillFor(root.foreground, root.accent)
+            selectedTextColor: Style.selectedStateColor(root.foreground, root.accent)
+            onSelectedTextChanged: {
+              root._pendingSelection = selectedText
+              if (selectedText !== "") copyTimer.restart()
+              else copyTimer.stop()
+            }
           }
         }
 
@@ -1647,10 +1720,10 @@ Item {
 
           TapHandler {
             acceptedButtons: Qt.LeftButton
-            onDoubleTapped: root.copyAnswer(model.answer)
+            onDoubleTapped: answerText.selectAll()
           }
 
-          Text {
+          TextEdit {
             id: answerText
             anchors.left: parent.left
             anchors.right: parent.right
@@ -1662,8 +1735,19 @@ Item {
             color: model.isError ? Color.urgent : root.foreground
             font.family: Style.font.family
             font.pixelSize: Style.font.body
-            wrapMode: Text.Wrap
-            textFormat: Text.PlainText
+            wrapMode: TextEdit.Wrap
+            textFormat: TextEdit.PlainText
+            readOnly: true
+            selectByMouse: true
+            activeFocusOnTab: false
+            cursorVisible: false
+            selectionColor: Style.selectionFillFor(root.foreground, root.accent)
+            selectedTextColor: model.isError ? Color.urgent : root.foreground
+            onSelectedTextChanged: {
+              root._pendingSelection = selectedText
+              if (selectedText !== "") copyTimer.restart()
+              else copyTimer.stop()
+            }
           }
         }
       }

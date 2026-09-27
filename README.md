@@ -9,7 +9,7 @@ Note: To make use of this plugin, you need to have a deepseek API key.
 Some features:
 
 - Very fast threaded conversation: each question paired with its answer
-- Double-click a question or answer to copy it to the clipboard
+- Selectable messages: drag to select part or all of a message to copy it to the clipboard; double-click selects the whole message
 - Optional conversation history for follow-up context 
 - When history is enabled in the settings, You can clear history in the chat panel at anytime to start with fresh context.
 - Live model list from DeepSeek (Settings - Refresh). Set the model you prefer.
@@ -58,7 +58,7 @@ omarchy-shell shell toggle io.github.henksys.ask
 
 - Type a question and press Enter (or click Send).
 - The conversation is shown as a thread: each question with its answer.
-- **Double-click** a question or answer to copy it to the clipboard.
+- **Select** any part of a message to copy it to the clipboard (double-click selects the whole message).
 - Escape or the Close button closes the panel.
 - **Clear** empties the conversation and deletes the history file.
 
@@ -72,6 +72,7 @@ Opens from the panel header. You can change:
 - **Temperature** and **Top P**
 - **Output format** (text or json_object)
 - **Save conversation history** (on/off)
+- **Screensize** (small / medium / full)
 - **Restore defaults** resets the config and clears history
 
 Changes are saved to `~/.config/ask/config` and apply immediately.
