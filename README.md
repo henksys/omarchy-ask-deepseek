@@ -2,6 +2,8 @@
 
 ### Ask DeepSeek
 
+**Version:** 1.1.0
+
 Chat with DeepSeek from your desktop — ask a question and get an answer in a pane that appears in the middle of your screen, with the conversation shown as a scrollable thread. This plugin is mostly usefull for if you suddenly have a question and you want a quick answer.
 
 Note: To make use of this plugin, you need to have a deepseek API key.
