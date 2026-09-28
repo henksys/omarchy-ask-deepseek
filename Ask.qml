@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQml.Models
 import Quickshell
 import Quickshell.Io
@@ -1074,6 +1075,9 @@ Item {
               contentHeight: settingsColumn.height
               clip: true
               boundsBehavior: Flickable.StopAtBounds
+
+              ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+              ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AlwaysOff }
 
               Column {
                 id: settingsColumn
