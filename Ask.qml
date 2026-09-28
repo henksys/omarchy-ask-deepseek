@@ -50,15 +50,15 @@ Item {
   // Settings-form scratch state (bound by the Settings tab controls).
   property string s_role: ""
   property string s_model: "deepseek-v4-flash"
-  property real s_temperature: 1
-  property real s_top_p: 1
-  property string s_temperature_text: "1.00"
-  property string s_top_p_text: "1.00"
+  property real s_temperature: 0.4
+  property real s_top_p: 0.8
+  property string s_temperature_text: "0.40"
+  property string s_top_p_text: "0.80"
   property bool s_thinking: true
-  property string s_reasoning_effort: "high"
+  property string s_reasoning_effort: "low"
   property string s_response_format: "text"
   property bool s_save_history: false
-  property string s_screensize: "small"
+  property string s_screensize: "medium"
 
   // API tab state.
   property string s_api_key: ""
@@ -424,25 +424,25 @@ Item {
   function loadSettings() {
     root.s_role = String(root.config.role || "")
     root.s_model = String(root.config.model || "deepseek-v4-flash")
-    root.s_temperature = parseFloat(root.config.temperature) || 1
-    root.s_top_p = parseFloat(root.config.top_p) || 1
+    root.s_temperature = parseFloat(root.config.temperature) || 0.4
+    root.s_top_p = parseFloat(root.config.top_p) || 0.8
     root.s_temperature_text = root.s_temperature.toFixed(2)
     root.s_top_p_text = root.s_top_p.toFixed(2)
     tempField.text = root.s_temperature_text
     topPField.text = root.s_top_p_text
     root.s_thinking = String(root.config.thinking || "enabled").toLowerCase() === "enabled"
-    root.s_reasoning_effort = String(root.config.reasoning_effort || "high")
+    root.s_reasoning_effort = String(root.config.reasoning_effort || "low")
     root.s_response_format = String(root.config.response_format || "text")
     root.s_save_history = String(root.config.save_history || "n").toLowerCase() === "y"
-    root.s_screensize = String(root.config.screensize || "small")
+    root.s_screensize = String(root.config.screensize || "medium")
   }
 
   function saveSettings() {
     var t = parseFloat(root.s_temperature)
-    if (isNaN(t)) t = 1
+    if (isNaN(t)) t = 0.4
     t = Math.min(2, Math.max(0, t))
     var p = parseFloat(root.s_top_p)
-    if (isNaN(p)) p = 1
+    if (isNaN(p)) p = 0.8
     p = Math.min(1, Math.max(0, p))
     root.s_temperature = t
     root.s_top_p = p
