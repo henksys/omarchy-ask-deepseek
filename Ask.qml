@@ -52,6 +52,8 @@ Item {
   property string s_model: "deepseek-v4-flash"
   property real s_temperature: 1
   property real s_top_p: 1
+  property string s_temperature_text: "1.00"
+  property string s_top_p_text: "1.00"
   property bool s_thinking: true
   property string s_reasoning_effort: "high"
   property string s_response_format: "text"
@@ -424,6 +426,10 @@ Item {
     root.s_model = String(root.config.model || "deepseek-v4-flash")
     root.s_temperature = parseFloat(root.config.temperature) || 1
     root.s_top_p = parseFloat(root.config.top_p) || 1
+    root.s_temperature_text = root.s_temperature.toFixed(2)
+    root.s_top_p_text = root.s_top_p.toFixed(2)
+    tempField.text = root.s_temperature_text
+    topPField.text = root.s_top_p_text
     root.s_thinking = String(root.config.thinking || "enabled").toLowerCase() === "enabled"
     root.s_reasoning_effort = String(root.config.reasoning_effort || "high")
     root.s_response_format = String(root.config.response_format || "text")
@@ -432,6 +438,14 @@ Item {
   }
 
   function saveSettings() {
+    var t = parseFloat(root.s_temperature)
+    if (isNaN(t)) t = 1
+    t = Math.min(2, Math.max(0, t))
+    var p = parseFloat(root.s_top_p)
+    if (isNaN(p)) p = 1
+    p = Math.min(1, Math.max(0, p))
+    root.s_temperature = t
+    root.s_top_p = p
     root.config = {
       role: root.s_role.trim(),
       model: root.s_model,
@@ -1217,13 +1231,9 @@ Item {
                   }
                 }
 
-                PanelSectionHeader {
-                  text: "Sampling"
-                }
-
                 Item {
                   width: parent.width
-                  height: Style.space(26)
+                  height: Style.spacing.controlHeight
                   Text {
                     text: "Temperature"
                     color: Qt.darker(root.foreground, 1.4)
@@ -1233,33 +1243,34 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                   }
-                  PanelSlider {
-                    id: tempSlider
-                    anchors.left: parent.left
-                    anchors.leftMargin: Style.space(120)
-                    anchors.right: tempValue.left
-                    anchors.rightMargin: Style.spacing.xxl
-                    anchors.verticalCenter: parent.verticalCenter
-                    minimum: 0
-                    maximum: 2
-                    step: 0.05
-                    value: root.s_temperature
-                    onMoved: function(v) { root.s_temperature = v }
-                  }
-                  Text {
-                    id: tempValue
-                    text: root.s_temperature.toFixed(2)
-                    color: root.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
+                  TextField {
+                    id: tempField
+                    width: Style.space(140)
+                    height: Style.spacing.controlHeight
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    placeholderText: "0.40"
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    validator: RegularExpressionValidator { regularExpression: /^\d*\.?\d{0,2}$/ }
+                    onTextEdited: {
+                      root.s_temperature_text = text
+                      var v = parseFloat(text)
+                      if (!isNaN(v)) root.s_temperature = v
+                    }
+                    onEditingFinished: {
+                      var v = parseFloat(root.s_temperature_text)
+                      if (isNaN(v)) v = root.s_temperature
+                      v = Math.min(2, Math.max(0, v))
+                      root.s_temperature = v
+                      root.s_temperature_text = v.toFixed(2)
+                      tempField.text = root.s_temperature_text
+                    }
                   }
                 }
 
                 Item {
                   width: parent.width
-                  height: Style.space(26)
+                  height: Style.spacing.controlHeight
                   Text {
                     text: "Top P"
                     color: Qt.darker(root.foreground, 1.4)
@@ -1269,27 +1280,28 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                   }
-                  PanelSlider {
-                    id: topPSlider
-                    anchors.left: parent.left
-                    anchors.leftMargin: Style.space(120)
-                    anchors.right: topPValue.left
-                    anchors.rightMargin: Style.spacing.xxl
-                    anchors.verticalCenter: parent.verticalCenter
-                    minimum: 0
-                    maximum: 1
-                    step: 0.01
-                    value: root.s_top_p
-                    onMoved: function(v) { root.s_top_p = v }
-                  }
-                  Text {
-                    id: topPValue
-                    text: root.s_top_p.toFixed(2)
-                    color: root.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
+                  TextField {
+                    id: topPField
+                    width: Style.space(140)
+                    height: Style.spacing.controlHeight
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    placeholderText: "0.90"
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    validator: RegularExpressionValidator { regularExpression: /^\d*\.?\d{0,2}$/ }
+                    onTextEdited: {
+                      root.s_top_p_text = text
+                      var v = parseFloat(text)
+                      if (!isNaN(v)) root.s_top_p = v
+                    }
+                    onEditingFinished: {
+                      var v = parseFloat(root.s_top_p_text)
+                      if (isNaN(v)) v = root.s_top_p
+                      v = Math.min(1, Math.max(0, v))
+                      root.s_top_p = v
+                      root.s_top_p_text = v.toFixed(2)
+                      topPField.text = root.s_top_p_text
+                    }
                   }
                 }
 
