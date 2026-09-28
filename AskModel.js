@@ -30,11 +30,11 @@ function defaultConfig() {
     role: "You are a helpful assistant.",
     model: "deepseek-v4-flash",
     temperature: 0.4,
-    top_p: 0.8,
+    top_p: 0.9,
     thinking: "enabled",
     reasoning_effort: "low",
     response_format: "text",
-    save_history: "n",
+    save_history: "y",
     screensize: "medium"
   }
 }

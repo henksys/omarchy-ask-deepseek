@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.henksys.ask",
   "name": "Ask DeepSeek",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "releaseDate": "2026-09-28",
   "author": "Henk",
   "license": "MIT",

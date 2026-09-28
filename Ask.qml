@@ -51,13 +51,13 @@ Item {
   property string s_role: ""
   property string s_model: "deepseek-v4-flash"
   property real s_temperature: 0.4
-  property real s_top_p: 0.8
+  property real s_top_p: 0.9
   property string s_temperature_text: "0.40"
-  property string s_top_p_text: "0.80"
+  property string s_top_p_text: "0.90"
   property bool s_thinking: true
   property string s_reasoning_effort: "low"
   property string s_response_format: "text"
-  property bool s_save_history: false
+  property bool s_save_history: true
   property string s_screensize: "medium"
 
   // API tab state.
@@ -425,7 +425,7 @@ Item {
     root.s_role = String(root.config.role || "")
     root.s_model = String(root.config.model || "deepseek-v4-flash")
     root.s_temperature = parseFloat(root.config.temperature) || 0.4
-    root.s_top_p = parseFloat(root.config.top_p) || 0.8
+    root.s_top_p = parseFloat(root.config.top_p) || 0.9
     root.s_temperature_text = root.s_temperature.toFixed(2)
     root.s_top_p_text = root.s_top_p.toFixed(2)
     tempField.text = root.s_temperature_text
@@ -433,7 +433,7 @@ Item {
     root.s_thinking = String(root.config.thinking || "enabled").toLowerCase() === "enabled"
     root.s_reasoning_effort = String(root.config.reasoning_effort || "low")
     root.s_response_format = String(root.config.response_format || "text")
-    root.s_save_history = String(root.config.save_history || "n").toLowerCase() === "y"
+    root.s_save_history = String(root.config.save_history || "y").toLowerCase() === "y"
     root.s_screensize = String(root.config.screensize || "medium")
   }
 
@@ -442,7 +442,7 @@ Item {
     if (isNaN(t)) t = 0.4
     t = Math.min(2, Math.max(0, t))
     var p = parseFloat(root.s_top_p)
-    if (isNaN(p)) p = 0.8
+    if (isNaN(p)) p = 0.9
     p = Math.min(1, Math.max(0, p))
     root.s_temperature = t
     root.s_top_p = p
@@ -462,13 +462,14 @@ Item {
   }
 
   // Restore the default config: overwrite the form, write it to the config
-  // file, and apply it immediately. History defaults to disabled, so the
-  // history file is also deleted.
+  // file, and apply it immediately. History starts fresh, so the in-memory
+  // thread is cleared and the history file is deleted.
   function restoreDefaults() {
     root.config = AskModel.defaultConfig()
     root.loadSettings()
     root.writeConfig(false)
-    root.loadHistoryIfEnabled()
+    threadModel.clear()
+    root._historyText = ""
     clearProc.command = ["sh", "-c", 'rm -f "$1"', "sh", root.historyFile]
     clearProc.running = true
     root.restoredFlash = true

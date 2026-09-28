@@ -2,7 +2,7 @@
 
 ### Ask DeepSeek
 
-**Current Version:** 1.2.0 ( added different pane sizes, can be set in the Settings tab, and Selectable messages, see below)
+**Current Version:** 1.2.1 ( added different pane sizes, can be set in the Settings tab, and Selectable messages, see below)
 
 Chat with DeepSeek from your desktop — ask a question and get an answer in a pane that appears in the middle of your screen, with the conversation shown as a scrollable thread. This plugin is mostly usefull for if you suddenly have a question and you want a quick answer.
 
