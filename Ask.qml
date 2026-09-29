@@ -49,7 +49,7 @@ Item {
 
   // Settings-form scratch state (bound by the Settings tab controls).
   property string s_role: ""
-  property string s_model: "deepseek-v4-flash"
+  property string s_model: "deepseek-flash"
   property real s_temperature: 0.4
   property real s_top_p: 0.9
   property string s_temperature_text: "0.40"
@@ -74,7 +74,7 @@ Item {
   readonly property string headerFile: configDir + "/.header"
 
   // Model list state (fetched live from the DeepSeek /models endpoint).
-  property var modelOptions: ["deepseek-v4-flash", "deepseek-v4-pro"]
+  property var modelOptions: ["deepseek-flash"]
   property bool modelLoading: false
   property string modelsError: ""
   property bool modelsKeyReadDone: false
@@ -423,7 +423,7 @@ Item {
 
   function loadSettings() {
     root.s_role = String(root.config.role || "")
-    root.s_model = String(root.config.model || "deepseek-v4-flash")
+    root.s_model = safeModelId(root.config.model) || "deepseek-flash"
     root.s_temperature = parseFloat(root.config.temperature) || 0.4
     root.s_top_p = parseFloat(root.config.top_p) || 0.9
     root.s_temperature_text = root.s_temperature.toFixed(2)
@@ -517,8 +517,13 @@ Item {
 
   // ---- Model list ----
 
+  function safeModelId(v) {
+    var s = String(v || "")
+    return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(s) ? s : ""
+  }
+
   function staticModelOptions() {
-    return ["deepseek-v4-flash", "deepseek-v4-pro"]
+    return ["deepseek-flash"]
   }
 
   function loadModels() {
@@ -554,7 +559,8 @@ Item {
       var data = JSON.parse(text)
       if (data && Array.isArray(data.data) && data.data.length > 0) {
         for (var i = 0; i < data.data.length; i++) {
-          if (data.data[i].id) ids.push(String(data.data[i].id))
+          var id = safeModelId(data.data[i].id)
+          if (id) ids.push(id)
         }
       }
     } catch (e) {
@@ -567,7 +573,7 @@ Item {
     }
     // Keep the currently selected model visible even if it is no longer
     // listed by the API.
-    if (ids.indexOf(root.s_model) === -1) ids.unshift(root.s_model)
+    if (ids.indexOf(root.s_model) === -1 && safeModelId(root.s_model) !== "") ids.unshift(root.s_model)
     root.modelOptions = ids
   }
 

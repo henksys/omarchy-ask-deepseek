@@ -28,7 +28,7 @@ function parseConfig(text) {
 function defaultConfig() {
   return {
     role: "You are a helpful assistant.",
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
     temperature: 0.4,
     top_p: 0.9,
     thinking: "enabled",
@@ -120,7 +120,7 @@ function buildRequest(cfg, messages) {
     thinking.reasoning_effort = String(cfg.reasoning_effort || "high")
   }
   return {
-    model: String(cfg.model || "deepseek-v4-flash"),
+    model: String(cfg.model || "deepseek-flash"),
     messages: messages,
     temperature: num(cfg.temperature, 1),
     top_p: num(cfg.top_p, 1),
